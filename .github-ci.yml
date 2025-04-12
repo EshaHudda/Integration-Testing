@@ -1,0 +1,45 @@
+image: node:18  # Use a Node.js image that includes npm
+
+stages:
+  - test
+  - deploy
+
+# Define a service for MongoDB.  This will start a MongoDB container
+# alongside your tests.
+services:
+  - name: mongo:4.4  # Use a specific version of MongoDB
+    alias: mongodb  # Alias to access the service within the job
+    ports:
+      - 27017:27017  # Map the container's port to the host's port
+
+#  Cache node_modules to speed up subsequent builds
+cache:
+  paths:
+    - node_modules/
+
+before_script:
+  - npm install  # Install dependencies
+  #  - (Optional)  If you had an environment file, you'd copy it here.
+  #  -  Example (if you had a postman_environment.json):
+  #  -  cp postman_environment.json .
+
+test:
+  stage: test
+  script:
+    - npm run start &  # Start the API in the background.  The '&' is important.
+    - sleep 5  # Wait for the server to start (adjust as needed)
+    - newman run integration-tests.postman_collection.json --reporters cli,htmlextra --reporter-htmlextra-export test_results.html
+  #  Artifacts are files created during the job that you want to store.
+  artifacts:
+    paths:
+      - test_results.html  #  Save the HTML test report
+    expire_in: 1 week
+
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploying to staging..." #  Placeholder. 
+    - echo "Tests Passed!  (See artifacts for detailed results)"
+  dependencies:
+    - test #  Ensure the 'deploy' job runs *after* the 'test' job.
+  when: on_success # Only deploy if the 'test' stage was successful.
